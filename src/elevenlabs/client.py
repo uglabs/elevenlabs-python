@@ -13,7 +13,7 @@ from .core import RequestOptions, ApiError
 from .types import Voice, VoiceSettings, \
   PronunciationDictionaryVersionLocator, Model
 from .environment import ElevenLabsEnvironment
-from .realtime_tts import RealtimeTextToSpeechClient
+from .realtime_tts import RealtimeTextToSpeechClient, AsyncRealtimeTextToSpeechClient
 from .types import OutputFormat
 from .text_to_speech.types.text_to_speech_stream_with_timestamps_response import TextToSpeechStreamWithTimestampsResponse
 
@@ -249,6 +249,7 @@ class ElevenLabs(BaseElevenLabs):
         request_options: typing.Optional[RequestOptions] = None
     ) -> Iterator[TextToSpeechStreamWithTimestampsResponse]:
         """
+            Similar to generate - only uses the full functionality of the API to generate audio with timestamps.
             - text: Iterator[str]. The stream of strings that will get converted into speech.
 
             - voice: str. A voice id, name, or voice response. Defaults to the Sarah voice.
@@ -342,6 +343,25 @@ class AsyncElevenLabs(AsyncBaseElevenLabs):
         api_key="YOUR_API_KEY",
     )
     """
+    def __init__(
+        self,
+        *,
+        base_url: typing.Optional[str] = None,
+        environment: ElevenLabsEnvironment = ElevenLabsEnvironment.PRODUCTION,
+        api_key: typing.Optional[str] = os.getenv("ELEVEN_API_KEY"),
+        timeout: typing.Optional[float] = None,
+        follow_redirects: typing.Optional[bool] = True,
+        httpx_client: typing.Optional[httpx.AsyncClient] = None
+    ):
+        super().__init__(
+            base_url=base_url,
+            environment=environment,
+            api_key=api_key,
+            timeout=timeout,
+            follow_redirects=follow_redirects,
+            httpx_client=httpx_client,
+        )
+        self.text_to_speech = AsyncRealtimeTextToSpeechClient(client_wrapper=self._client_wrapper)
 
     async def clone(
       self,
@@ -382,29 +402,151 @@ class AsyncElevenLabs(AsyncBaseElevenLabs):
         )
 
     async def generate(
-      self,
-      *,
-      text: str,
-      voice: Union[VoiceId, VoiceName, Voice] = DEFAULT_VOICE,
-      voice_settings: typing.Optional[VoiceSettings] = DEFAULT_VOICE.settings,
-      model: Union[ModelId, Model] = "eleven_monolingual_v1",
-      optimize_streaming_latency: typing.Optional[int] = 0,
-      stream: bool = False,
-      output_format: Optional[OutputFormat] = "mp3_44100_128",
-      pronunciation_dictionary_locators: typing.Optional[
+        self,
+        *,
+        text: str,
+        voice: Union[VoiceId, VoiceName, Voice] = DEFAULT_VOICE,
+        voice_settings: typing.Optional[VoiceSettings] = DEFAULT_VOICE.settings,
+        model: Union[ModelId, Model] = "eleven_monolingual_v1",
+        optimize_streaming_latency: typing.Optional[int] = 0,
+        stream: bool = False,
+        output_format: Optional[OutputFormat] = "mp3_44100_128",
+        pronunciation_dictionary_locators: typing.Optional[
             typing.Sequence[PronunciationDictionaryVersionLocator]
         ] = OMIT,
-      request_options: typing.Optional[RequestOptions] = None
+        request_options: typing.Optional[RequestOptions] = None
     ) -> AsyncIterator[bytes]:
         """
-          This is a manually mnaintained helper function that generates a 
+          This is a manually mnaintained helper function that generates a
+          voice from provided text.
+
+          **NOTE**: This function is a helper function and is simply making
+          calls to the `text_to_speech.convert` and`text_to_speech.convert_as_stream`
+          functions.
+
+            - text: str. The string that will get converted into speech. The Async client does not support streaming.
+
+            - voice: str. A voice id, name, or voice response. Defaults to the Rachel voice.
+
+            - model: typing.Optional[str]. Identifier of the model that will be used, you can query them using GET /v1/models.
+                                           The model needs to have support for text to speech, you can check this using the
+                                           can_do_text_to_speech property.
+
+            - optimize_streaming_latency: typing.Optional[int]. You can turn on latency optimizations at some cost of quality. The best possible final latency varies by model. Possible values:
+                                                                0 - default mode (no latency optimizations)
+                                                                1 - normal latency optimizations (about 50% of possible latency improvement of option 3)
+                                                                2 - strong latency optimizations (about 75% of possible latency improvement of option 3)
+                                                                3 - max latency optimizations
+                                                                4 - max latency optimizations, but also with text normalizer turned off for even more latency savings (best latency, but can mispronounce eg numbers and dates).
+
+                                                                Defaults to 0.
+
+            - stream: bool. If true, the function will return a generator that will yield the audio in chunks.
+
+                            Defaults to False.
+
+            - output_format: typing.Optional[OutputFormat]. Output format of the generated audio. Must be one of:
+                                                   mp3_22050_32 - output format, mp3 with 22.05kHz sample rate at 32kbps.
+                                                   mp3_44100_32 - output format, mp3 with 44.1kHz sample rate at 32kbps.
+                                                   mp3_44100_64 - output format, mp3 with 44.1kHz sample rate at 64kbps.
+                                                   mp3_44100_96 - output format, mp3 with 44.1kHz sample rate at 96kbps.
+                                                   mp3_44100_128 - default output format, mp3 with 44.1kHz sample rate at 128kbps.
+                                                   mp3_44100_192 - output format, mp3 with 44.1kHz sample rate at 192kbps. Requires you to be subscribed to Creator tier or above.
+                                                   pcm_16000 - PCM format (S16LE) with 16kHz sample rate.
+                                                   pcm_22050 - PCM format (S16LE) with 22.05kHz sample rate.
+                                                   pcm_24000 - PCM format (S16LE) with 24kHz sample rate.
+                                                   pcm_44100 - PCM format (S16LE) with 44.1kHz sample rate. Requires you to be subscribed to Independent Publisher tier or above.
+                                                   ulaw_8000 - μ-law format (sometimes written mu-law, often approximated as u-law) with 8kHz sample rate. Note that this format is commonly used for Twilio audio inputs.
+
+                                                    Defaults to mp3_44100_128.
+
+            - voice_settings: typing.Optional[VoiceSettings]. Voice settings overriding stored setttings for the given voice. They are applied only on the given request.
+
+            - pronunciation_dictionary_locators: typing.Optional[typing.Sequence[PronunciationDictionaryVersionLocator]]. A list of pronunciation dictionary locators (id, version_id) to be applied to the text. They will be applied in order. You may have up to 3 locators per request
+
+            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
+        """
+        if isinstance(voice, str) and is_voice_id(voice):
+            voice_id = voice
+        elif isinstance(voice, str):
+            voices_response = await self.voices.get_all(request_options=request_options, show_legacy=True)
+            maybe_voice_id = next((v.voice_id for v in voices_response.voices if v.name == voice), None)
+            if not maybe_voice_id:
+                raise ApiError(body=f"Voice {voice} not found.")
+            voice_id = maybe_voice_id
+        elif isinstance(voice, Voice):
+            voice_id = voice.voice_id
+            if voice_settings == DEFAULT_VOICE.settings \
+                and voice.settings is not None:
+                voice_settings = voice.settings
+        else:
+            voice_id = DEFAULT_VOICE.voice_id
+
+        if isinstance(model, str):
+            model_id = model
+        elif isinstance(model, Model):
+            model_id = model.model_id
+
+        if stream:
+            if isinstance(text, str):
+                return self.text_to_speech.convert_as_stream(
+                    voice_id=voice_id,
+                    model_id=model_id,
+                    voice_settings=voice_settings,
+                    optimize_streaming_latency=optimize_streaming_latency,
+                    output_format=output_format,
+                    text=text,
+                    request_options=request_options,
+                    pronunciation_dictionary_locators=pronunciation_dictionary_locators
+                )
+            elif isinstance(text, AsyncIterator):
+                return self.text_to_speech.convert_realtime(  # type: ignore
+                    voice_id=voice_id,
+                    voice_settings=voice_settings,
+                    output_format=output_format,
+                    text=text,
+                    request_options=request_options,
+                    model_id=model_id
+                )
+            else:
+                raise ApiError(body="Text is neither a string nor an iterator.")
+        else:
+            if not isinstance(text, str):
+                raise ApiError(body="Text must be a string when stream is False.")
+            return self.text_to_speech.convert(
+                voice_id=voice_id,
+                model_id=model_id,
+                voice_settings=voice_settings,
+                optimize_streaming_latency=optimize_streaming_latency,
+                output_format=output_format,
+                text=text,
+                request_options=request_options,
+                pronunciation_dictionary_locators=pronunciation_dictionary_locators
+            )
+
+    async def generate_stream_with_alignment(
+        self,
+        *,
+        text: AsyncIterator[str],
+        voice: Union[VoiceId, VoiceName, Voice] = DEFAULT_VOICE,
+        voice_settings: typing.Optional[VoiceSettings] = DEFAULT_VOICE.settings,
+        model: Union[ModelId, Model] = "eleven_monolingual_v1",
+        optimize_streaming_latency: typing.Optional[int] = 0,
+        output_format: Optional[OutputFormat] = "mp3_44100_128",
+        pronunciation_dictionary_locators: typing.Optional[
+            typing.Sequence[PronunciationDictionaryVersionLocator]
+        ] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None
+    ) -> AsyncIterator[TextToSpeechStreamWithTimestampsResponse]:
+        """
+          This is a manually maintained helper function that generates a
           voice from provided text.
 
           **NOTE**: This function is a helper function and is simply making 
           calls to the `text_to_speech.convert` and`text_to_speech.convert_as_stream`
           functions.
 
-            - text: str. The string that will get converted into speech. The Async client does not support streaming.
+            - text: AsyncIterator[str]. The stream of strings that will get converted into speech.
 
             - voice: str. A voice id, name, or voice response. Defaults to the Rachel voice. 
 
@@ -420,10 +562,6 @@ class AsyncElevenLabs(AsyncBaseElevenLabs):
                                                                 4 - max latency optimizations, but also with text normalizer turned off for even more latency savings (best latency, but can mispronounce eg numbers and dates).
 
                                                                 Defaults to 0.
-            
-            - stream: bool. If true, the function will return a generator that will yield the audio in chunks.    
-
-                            Defaults to False.                                                                
 
             - output_format: typing.Optional[OutputFormat]. Output format of the generated audio. Must be one of:
                                                    mp3_22050_32 - output format, mp3 with 22.05kHz sample rate at 32kbps.
@@ -466,28 +604,12 @@ class AsyncElevenLabs(AsyncBaseElevenLabs):
             model_id = model
         elif isinstance(model, Model):
             model_id = model.model_id
-        
-        if stream:
-            return self.text_to_speech.convert_as_stream(
-                voice_id=voice_id,
-                model_id=model_id,
-                voice_settings=voice_settings,
-                optimize_streaming_latency=optimize_streaming_latency,
-                output_format=output_format,
-                text=text,
-                request_options=request_options,
-                pronunciation_dictionary_locators=pronunciation_dictionary_locators
-            )
-        else:
-            if not isinstance(text, str):
-                raise ApiError(body="Text must be a string when stream is False.")
-            return self.text_to_speech.convert(
-                voice_id=voice_id,
-                model_id=model_id,
-                voice_settings=voice_settings,
-                optimize_streaming_latency=optimize_streaming_latency,
-                output_format=output_format,
-                text=text,
-                request_options=request_options,
-                pronunciation_dictionary_locators=pronunciation_dictionary_locators
-            )
+
+        return self.text_to_speech.convert_realtime_full(  # type: ignore
+            voice_id=voice_id,
+            voice_settings=voice_settings,
+            output_format=output_format,
+            text=text,
+            request_options=request_options,
+            model_id=model_id
+        )
