@@ -15,6 +15,7 @@ from .types import Voice, VoiceSettings, \
 from .environment import ElevenLabsEnvironment
 from .realtime_tts import RealtimeTextToSpeechClient
 from .types import OutputFormat
+from .text_to_speech.types.text_to_speech_stream_with_timestamps_response import TextToSpeechStreamWithTimestampsResponse
 
 
 DEFAULT_VOICE = Voice(
@@ -246,7 +247,7 @@ class ElevenLabs(BaseElevenLabs):
             typing.Sequence[PronunciationDictionaryVersionLocator]
         ] = OMIT,
         request_options: typing.Optional[RequestOptions] = None
-    ) -> Iterator[dict]:
+    ) -> Iterator[TextToSpeechStreamWithTimestampsResponse]:
         """
             - text: Iterator[str]. The stream of strings that will get converted into speech.
 
