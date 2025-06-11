@@ -57,6 +57,16 @@ async def async_text_chunker(chunks: typing.AsyncIterator[str]) -> typing.AsyncI
     if buffer != "":
         yield buffer + " "
 
+
+def get_wss_api_url_suffix(request_options: typing.Optional[RequestOptions] = None) -> str:
+    url_prefix = ""
+    if request_options is not None:
+        enable_ssml_parsing = request_options.get("enable_ssml_parsing")
+        if enable_ssml_parsing is not None:
+            url_prefix = f"&enable_ssml_parsing={enable_ssml_parsing.lower()}"
+    return url_prefix
+
+
 class RealtimeTextToSpeechClient(TextToSpeechClient):
 
     def convert_realtime(
@@ -108,7 +118,7 @@ class RealtimeTextToSpeechClient(TextToSpeechClient):
         with connect(
             urllib.parse.urljoin(
               "wss://api.elevenlabs.io/", 
-              f"v1/text-to-speech/{jsonable_encoder(voice_id)}/stream-input?model_id={model_id}&output_format={output_format}"
+              f"v1/text-to-speech/{jsonable_encoder(voice_id)}/stream-input?model_id={model_id}&output_format={output_format}{get_wss_api_url_suffix(request_options)}"
             ),
             additional_headers=jsonable_encoder(
                 remove_none_from_dict(
@@ -207,7 +217,7 @@ class RealtimeTextToSpeechClient(TextToSpeechClient):
         with connect(
             urllib.parse.urljoin(
                 "wss://api.elevenlabs.io/",
-                f"v1/text-to-speech/{jsonable_encoder(voice_id)}/stream-input?model_id={model_id}&output_format={output_format}"
+                f"v1/text-to-speech/{jsonable_encoder(voice_id)}/stream-input?model_id={model_id}&output_format={output_format}{get_wss_api_url_suffix(request_options)}"
             ),
             additional_headers=jsonable_encoder(
                 remove_none_from_dict(
@@ -306,7 +316,7 @@ class AsyncRealtimeTextToSpeechClient(AsyncTextToSpeechClient):
         async with async_connect(
             urllib.parse.urljoin(
               "wss://api.elevenlabs.io/", 
-              f"v1/text-to-speech/{jsonable_encoder(voice_id)}/stream-input?model_id={model_id}&output_format={output_format}"
+              f"v1/text-to-speech/{jsonable_encoder(voice_id)}/stream-input?model_id={model_id}&output_format={output_format}{get_wss_api_url_suffix(request_options)}"
             ),
             extra_headers=jsonable_encoder(
                 remove_none_from_dict(
@@ -405,7 +415,7 @@ class AsyncRealtimeTextToSpeechClient(AsyncTextToSpeechClient):
         async with async_connect(
             urllib.parse.urljoin(
                 "wss://api.elevenlabs.io/",
-                f"v1/text-to-speech/{jsonable_encoder(voice_id)}/stream-input?model_id={model_id}&output_format={output_format}"
+                f"v1/text-to-speech/{jsonable_encoder(voice_id)}/stream-input?model_id={model_id}&output_format={output_format}{get_wss_api_url_suffix(request_options)}"
             ),
             extra_headers=jsonable_encoder(
                 remove_none_from_dict(
