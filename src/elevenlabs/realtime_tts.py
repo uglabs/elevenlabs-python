@@ -63,7 +63,7 @@ def get_wss_api_url_suffix(request_options: typing.Optional[RequestOptions] = No
     if request_options is not None:
         enable_ssml_parsing = request_options.get("enable_ssml_parsing")
         if enable_ssml_parsing is not None:
-            url_prefix = f"&enable_ssml_parsing={enable_ssml_parsing.lower()}"
+            url_prefix = f"&enable_ssml_parsing={str(enable_ssml_parsing).lower()}"
     return url_prefix
 
 
