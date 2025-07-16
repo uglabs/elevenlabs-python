@@ -67,6 +67,12 @@ def get_wss_api_url_suffix(request_options: typing.Optional[RequestOptions] = No
     return url_prefix
 
 
+def voice_settings_to_dict(voice_settings: typing.Optional[VoiceSettings]) -> typing.Optional[dict]:
+    if voice_settings is None:
+        return None
+    return voice_settings.model_dump(exclude_none=True)
+
+
 class RealtimeTextToSpeechClient(TextToSpeechClient):
 
     def convert_realtime(
@@ -134,7 +140,7 @@ class RealtimeTextToSpeechClient(TextToSpeechClient):
                     dict(
                         text=" ",
                         try_trigger_generation=True,
-                        voice_settings=voice_settings.dict() if voice_settings else None,
+                        voice_settings=voice_settings_to_dict(voice_settings),
                         generation_config=dict(
                             chunk_length_schedule=[50],
                         ),
@@ -233,7 +239,7 @@ class RealtimeTextToSpeechClient(TextToSpeechClient):
                     dict(
                         text=" ",
                         try_trigger_generation=True,
-                        voice_settings=voice_settings.dict() if voice_settings else None,
+                        voice_settings=voice_settings_to_dict(voice_settings),
                         generation_config=dict(
                             chunk_length_schedule=[50],
                         ),
@@ -332,7 +338,7 @@ class AsyncRealtimeTextToSpeechClient(AsyncTextToSpeechClient):
                     dict(
                         text=" ",
                         try_trigger_generation=True,
-                        voice_settings=voice_settings.dict() if voice_settings else None,
+                        voice_settings=voice_settings_to_dict(voice_settings),
                         generation_config=dict(
                             chunk_length_schedule=[50],
                         ),
@@ -431,7 +437,7 @@ class AsyncRealtimeTextToSpeechClient(AsyncTextToSpeechClient):
                     dict(
                         text=" ",
                         try_trigger_generation=True,
-                        voice_settings=voice_settings.dict() if voice_settings else None,
+                        voice_settings=voice_settings_to_dict(voice_settings),
                         generation_config=dict(
                             chunk_length_schedule=[50],
                         ),
